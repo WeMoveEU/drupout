@@ -1,0 +1,113 @@
+<?php
+
+/**
+ * @file
+ * Module that allows creating and editing Speakout campaigns from a webform
+ */
+
+/**
+ * Simple slugifiyer
+ * Replaces all non-slug characters with _
+ */
+function drupout_slugify($str) {
+  return strtolower(preg_replace('/[^a-zA-Z0-9-]+/', '_', $str));
+}
+
+function drupout_webform_submission_insert($node, $submission) {
+  if ($node->nid == variable_get('drupout_submission_node')) {
+    $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000/api');
+    $user = variable_get('drupout_speakout_user');
+    $password = variable_get('drupout_speakout_password');
+    $url = $root_endpoint . '/campaigns';
+
+    $keys = array();
+    foreach ($node->webform['components'] as $cid => $component) {
+      $keys[$component['form_key']] = $cid;
+    }
+
+    $title = $submission->data[$keys['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']][0];
+    $date_prefix = date('Ym');
+    $language = 'EN';
+    $jsonData = array(
+      'name' => $title,
+      'internal_name' => $date_prefix . '-' . drupout_slugify($title) . '-' . $language,
+      'journey' => 'simple',
+    );
+     
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); 
+    $jsonDataEncoded = json_encode($jsonData);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonDataEncoded);
+     
+    $result = curl_exec($ch);
+    if ($result) {
+      $call_info = curl_getinfo($ch);
+      if ($call_info['http_code'] != 201) {
+      	watchdog('drupout', print_r($call_info, true));
+      }
+    } else {
+      watchdog('drupout', "Unable to send campaign request to Speakout: " . curl_error($ch));
+      //TODO
+      //Send email to vesna? tech?
+    }
+
+    curl_close($ch);
+  }
+}
+
+/**
+ * Creates the item in the admin main page
+ */
+function drupout_menu() {
+  $items = array();
+
+  $items['admin/config/content/drupout'] = array(
+    'title' => "Drupout settings",
+    'description' => "Settings to create Speakout campaigns from Drupal",
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('drupout_settings_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM
+  );
+
+  return $items;
+}
+
+/**
+ * Generates the config form
+ */
+function drupout_settings_form($form, &$form_state) {
+  $form['drupout_submission_node'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Submission node'),
+    '#default_value' => variable_get('drupout_submission_node'),
+    '#description' => t('Drupal node id with the webform to create/edit campaigns'),
+    '#required' => true
+  );
+  $form['drupout_endpoint'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Speakout API URL'),
+    '#default_value' => variable_get('drupout_endpoint', 'http://localhost:3000/api'),
+    '#description' => t('URL to the root API controller of Speakout, without trailing slash'),
+    '#required' => true
+  );
+  $form['drupout_speakout_user'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Speakout user'),
+    '#default_value' => variable_get('drupout_speakout_user'),
+    '#description' => t('Speakout user'),
+    '#required' => true
+  );
+  $form['drupout_speakout_password'] = array(
+    '#type' => 'password',
+    '#title' => t('Speakout password'),
+    '#default_value' => variable_get('drupout_speakout_password'),
+    '#description' => t('Speakout password'),
+    '#required' => true
+  );
+  
+  return system_settings_form($form);
+}
+

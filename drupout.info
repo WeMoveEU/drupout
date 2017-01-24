@@ -1,0 +1,4 @@
+name = Drupout
+description = Create and edit Speakout campaigns from Drupal webforms
+core = 7.x
+configure = admin/config/content/drupout
