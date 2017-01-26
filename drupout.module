@@ -9,31 +9,46 @@
  * Simple slugifiyer
  * Replaces all non-slug characters with _
  */
-function drupout_slugify($str) {
-  return strtolower(preg_replace('/[^a-zA-Z0-9-]+/', '_', $str));
+function drupout_slugify($str, $sep='-') {
+  return strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $str));
+}
+
+function drupout_form2json($node, $submission) {
+  $keys = array();
+  foreach ($node->webform['components'] as $cid => $component) {
+    $keys[$component['form_key']] = $cid;
+  }
+
+  $title = $submission->data[$keys['civicrm_1_activity_1_activity_subject']][0];
+  $date_prefix = date('Ym');
+  $language = 'EN';
+  $img_file = file_load($submission->data[$keys['add_an_image']][0]);
+  $jsonData = array(
+    'name' => $title,
+    'slug' => drupout_slugify($title),
+    'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-' . $language,
+    'image_url' => file_create_url($img_file->uri),
+    'description' => $submission->data[$keys['add_texts_for_social_media_shares']][0],
+    'twitter_share_text' => $submission->data[$keys['add_texts_for_ttwitter']][0],
+    'decisions_attr' => array(
+      'display_name' => $submission->data[$keys['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']][0]
+    )
+  );
+
+  return $jsonData;
 }
 
 function drupout_webform_submission_insert($node, $submission) {
   if ($node->nid == variable_get('drupout_submission_node')) {
+    watchdog('drupout', print_r($submission, true));
     $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000/api');
     $user = variable_get('drupout_speakout_user');
     $password = variable_get('drupout_speakout_password');
-    $url = $root_endpoint . '/campaigns';
+    $template_id = variable_get('drupout_speakout_templates');
 
-    $keys = array();
-    foreach ($node->webform['components'] as $cid => $component) {
-      $keys[$component['form_key']] = $cid;
-    }
-
-    $title = $submission->data[$keys['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']][0];
-    $date_prefix = date('Ym');
-    $language = 'EN';
-    $jsonData = array(
-      'name' => $title,
-      'internal_name' => $date_prefix . '-' . drupout_slugify($title) . '-' . $language,
-      'journey' => 'simple',
-    );
+    $jsonData = drupout_form2json($node, $submission);
      
+    $url = "$root_endpoint/campaigns/$template_id/clone";
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
     curl_setopt($ch, CURLOPT_POST, true);
@@ -104,7 +119,13 @@ function drupout_settings_form($form, &$form_state) {
     '#type' => 'password',
     '#title' => t('Speakout password'),
     '#default_value' => variable_get('drupout_speakout_password'),
-    '#description' => t('Speakout password'),
+    '#description' => t('Speakout password')
+  );
+  $form['drupout_speakout_templates'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Speakout templates'),
+    '#default_value' => variable_get('drupout_speakout_templates'),
+    '#description' => t('Speakout templates'),
     '#required' => true
   );
   
