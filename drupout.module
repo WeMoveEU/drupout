@@ -32,6 +32,12 @@ function drupout_form2json($node, $submission) {
     'twitter_share_text' => $submission->data[$keys['add_texts_for_ttwitter']][0],
     'decisions_attr' => array(
       'display_name' => $submission->data[$keys['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']][0]
+    ),
+    'variables' => array(
+      'sign_advice' => array(
+        'petition' => $submission->data[$keys['what_do_you_want_them_to_do']][0],
+	'why_important' => $submission->data[$keys['why_is_this_important']][0]
+      )
     )
   );
 
