@@ -159,3 +159,32 @@ function drupout_settings_form($form, &$form_state) {
   return system_settings_form($form);
 }
 
+function drupout_youmove_languages() {
+  $languages = array(
+    'da' => t('Danish'),
+    'de' => t('German'),
+    'el' => t('Greek'),
+    'en' => t('English'),
+    'es' => t('Spanish'),
+    'fr' => t('French'),
+    'hu' => t('Hungarian'),
+    'it' => t('Italian'),
+    'nl' => t('Dutch'),
+    'pl' => t('Polish'),
+    'pt' => t('Portuguese'),
+  );
+  $available = drupout_language_templates();
+  return array_intersect_key($languages, $available);
+}
+
+function drupout_webform_select_options_info() {
+  $items = array();
+
+  $items['youmove_langs'] = array(
+    'title' => t('Youmove languages'), 
+    'options callback' => 'drupout_youmove_languages', 
+  );
+
+  return $items;
+}
+
