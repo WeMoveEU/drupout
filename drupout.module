@@ -13,30 +13,50 @@ function drupout_slugify($str, $sep='-') {
   return strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $str));
 }
 
-function drupout_form2json($node, $submission) {
-  $keys = array();
-  foreach ($node->webform['components'] as $cid => $component) {
-    $keys[$component['form_key']] = $cid;
+function drupout_language_templates() {
+  $templates_str = variable_get('drupout_speakout_templates');
+  $langs = explode(',', $templates_str);
+  $templates = array();
+  foreach ($langs as $lang) {
+    list($l, $id) = explode(':', $lang);
+    $templates[$l] = $id;
   }
+  return $templates;
+}
 
-  $title = $submission->data[$keys['civicrm_1_activity_1_activity_subject']][0];
+function drupout_params($node, $submission) {
+  $params = array();
+  foreach ($node->webform['components'] as $cid => $component) {
+    $params[$component['form_key']] = $submission->data[$cid][0];  
+  }
+  return $params;
+}
+
+function drupout_template_id($params) {
+  $templates = drupout_language_templates();
+  $lang = $params['language'];
+  return $templates[$lang];
+}
+
+function drupout_form2json($params) {
+  $title = $params['civicrm_1_activity_1_activity_subject'];
   $date_prefix = date('Ym');
-  $language = 'EN';
-  $img_file = file_load($submission->data[$keys['add_an_image']][0]);
+  $language = strtoupper($params['language']);
+  $img_file = file_load($params['add_an_image']);
   $jsonData = array(
     'name' => $title,
     'slug' => drupout_slugify($title),
     'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-' . $language,
     'image_url' => file_create_url($img_file->uri),
-    'description' => $submission->data[$keys['add_texts_for_social_media_shares']][0],
-    'twitter_share_text' => $submission->data[$keys['add_texts_for_ttwitter']][0],
+    'description' => $params['add_texts_for_social_media_shares'],
+    'twitter_share_text' => $params['add_texts_for_ttwitter'],
     'decisions_attr' => array(
-      'display_name' => $submission->data[$keys['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']][0]
+      'display_name' => $params['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']
     ),
     'variables' => array(
       'sign_advice' => array(
-        'petition' => $submission->data[$keys['what_do_you_want_them_to_do']][0],
-	'why_important' => $submission->data[$keys['why_is_this_important']][0]
+        'petition' => $params['what_do_you_want_them_to_do'],
+	'why_important' => $params['why_is_this_important']
       )
     )
   );
@@ -50,9 +70,10 @@ function drupout_webform_submission_insert($node, $submission) {
     $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000/api');
     $user = variable_get('drupout_speakout_user');
     $password = variable_get('drupout_speakout_password');
-    $template_id = variable_get('drupout_speakout_templates');
 
-    $jsonData = drupout_form2json($node, $submission);
+    $params = drupout_params($node, $submission);
+    $template_id = drupout_template_id($params);
+    $jsonData = drupout_form2json($params);
      
     $url = "$root_endpoint/campaigns/$template_id/clone";
     $ch = curl_init($url);
