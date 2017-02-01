@@ -13,6 +13,20 @@ function drupout_slugify($str, $sep='-') {
   return strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $str));
 }
 
+function drupout_webform_submission_presave($node, &$submission) {
+  foreach ($node->webform['components'] as $cid => $component) {
+    if ($component['form_key'] == 'speakout_link') {
+      $link_cid = $cid;
+    }
+    if ($component['form_key'] == 'civicrm_1_activity_1_activity_subject') {
+      $title = $submission->data[$cid][0];  
+    }
+  }
+  $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
+  $slug = drupout_slugify($title);
+  $submission->data[$link_cid][0] = $root_endpoint . '/campaigns/' . $slug;
+}
+
 function drupout_language_templates() {
   $templates_str = variable_get('drupout_speakout_templates');
   $langs = explode(',', $templates_str);
@@ -66,8 +80,7 @@ function drupout_form2json($params) {
 
 function drupout_webform_submission_insert($node, $submission) {
   if ($node->nid == variable_get('drupout_submission_node')) {
-    watchdog('drupout', print_r($submission, true));
-    $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000/api');
+    $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
     $user = variable_get('drupout_speakout_user');
     $password = variable_get('drupout_speakout_password');
 
@@ -75,7 +88,7 @@ function drupout_webform_submission_insert($node, $submission) {
     $template_id = drupout_template_id($params);
     $jsonData = drupout_form2json($params);
      
-    $url = "$root_endpoint/campaigns/$template_id/clone";
+    $url = "$root_endpoint/api/campaigns/$template_id/clone";
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
     curl_setopt($ch, CURLOPT_POST, true);
@@ -130,9 +143,9 @@ function drupout_settings_form($form, &$form_state) {
   );
   $form['drupout_endpoint'] = array(
     '#type' => 'textfield',
-    '#title' => t('Speakout API URL'),
-    '#default_value' => variable_get('drupout_endpoint', 'http://localhost:3000/api'),
-    '#description' => t('URL to the root API controller of Speakout, without trailing slash'),
+    '#title' => t('Speakout URL'),
+    '#default_value' => variable_get('drupout_endpoint', 'http://localhost:3000'),
+    '#description' => t('URL to the Speakout application, without trailing slash'),
     '#required' => true
   );
   $form['drupout_speakout_user'] = array(
