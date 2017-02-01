@@ -13,6 +13,10 @@ function drupout_slugify($str, $sep='-') {
   return strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $str));
 }
 
+/**
+ * Determine the campaign URL from its title and update
+ * `speakout_link` value in the submission
+ */
 function drupout_webform_submission_presave($node, &$submission) {
   foreach ($node->webform['components'] as $cid => $component) {
     if ($component['form_key'] == 'speakout_link') {
@@ -27,6 +31,10 @@ function drupout_webform_submission_presave($node, &$submission) {
   $submission->data[$link_cid][0] = $root_endpoint . '/campaigns/' . $slug;
 }
 
+/**
+ * Reads the template ids from the settings
+ * and returns an array($lang => $id)
+ */
 function drupout_language_templates() {
   $templates_str = variable_get('drupout_speakout_templates');
   $langs = explode(',', $templates_str);
@@ -38,6 +46,9 @@ function drupout_language_templates() {
   return $templates;
 }
 
+/**
+ * Returns an associative array($key => value) of the submission
+ */
 function drupout_params($node, $submission) {
   $params = array();
   foreach ($node->webform['components'] as $cid => $component) {
@@ -52,6 +63,9 @@ function drupout_template_id($params) {
   return $templates[$lang];
 }
 
+/**
+ * Converts the submitted value into a JSON object that can be sent to Speakout
+ */
 function drupout_form2json($params) {
   $title = $params['civicrm_1_activity_1_activity_subject'];
   $date_prefix = date('Ym');
@@ -78,6 +92,9 @@ function drupout_form2json($params) {
   return $jsonData;
 }
 
+/**
+ * Builds and sends the JSON to Speakout API
+ */ 
 function drupout_webform_submission_insert($node, $submission) {
   if ($node->nid == variable_get('drupout_submission_node')) {
     $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
@@ -179,6 +196,9 @@ function drupout_pwd_value($element, $input = FALSE, &$form_state) {
   return $input;
 }
 
+/**
+ * Returns the supported language options according to settings
+ */
 function drupout_youmove_languages() {
   $languages = array(
     'da' => t('Danish'),
