@@ -60,7 +60,11 @@ function drupout_params($node, $submission) {
 function drupout_template_id($params) {
   $templates = drupout_language_templates();
   $lang = $params['language'];
-  return $templates[$lang];
+  if (isset($templates[$lang])) {
+    return $templates[$lang];
+  } else {
+    return NULL;
+  }
 }
 
 /**
@@ -103,29 +107,33 @@ function drupout_webform_submission_insert($node, $submission) {
 
     $params = drupout_params($node, $submission);
     $template_id = drupout_template_id($params);
-    $jsonData = drupout_form2json($params);
-     
-    $url = "$root_endpoint/api/campaigns/$template_id/clone";
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); 
-    $jsonDataEncoded = json_encode($jsonData);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonDataEncoded);
-     
-    $result = curl_exec($ch);
-    if ($result) {
-      $call_info = curl_getinfo($ch);
-      if ($call_info['http_code'] != 201) {
-      	watchdog('drupout', print_r($call_info, true));
+    if ($template_id != NULL) {
+      $jsonData = drupout_form2json($params);
+       
+      $url = "$root_endpoint/api/campaigns/$template_id/clone";
+      $ch = curl_init($url);
+      curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
+      curl_setopt($ch, CURLOPT_POST, true);
+      curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); 
+      $jsonDataEncoded = json_encode($jsonData);
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonDataEncoded);
+       
+      $result = curl_exec($ch);
+      if ($result) {
+	$call_info = curl_getinfo($ch);
+	if ($call_info['http_code'] != 201) {
+	  watchdog('drupout', print_r($call_info, true));
+	}
+      } else {
+	watchdog('drupout', "Unable to send campaign request to Speakout: " . curl_error($ch));
+	//TODO
+	//Send email to vesna? tech?
       }
-    } else {
-      watchdog('drupout', "Unable to send campaign request to Speakout: " . curl_error($ch));
-      //TODO
-      //Send email to vesna? tech?
-    }
 
-    curl_close($ch);
+      curl_close($ch);
+    } else {
+      watchdog('drupout', "Not creating Speakout campaign because " . $params['language'] . " is not supported.");
+    }
   }
 }
 
