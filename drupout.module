@@ -7,7 +7,7 @@
 
 /**
  * Simple slugifiyer
- * Replaces all non-slug characters with _
+ * Replaces all non-slug characters with $sep
  */
 function drupout_slugify($str, $sep='-') {
   return strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $str));
