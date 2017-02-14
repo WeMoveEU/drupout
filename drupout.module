@@ -110,7 +110,7 @@ function drupout_webform_submission_insert($node, $submission) {
     if ($template_id != NULL) {
       $jsonData = drupout_form2json($params);
        
-      $url = "$root_endpoint/api/campaigns/$template_id/clone";
+      $url = "$root_endpoint/api/v1/campaigns/$template_id/clone";
       $ch = curl_init($url);
       curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
       curl_setopt($ch, CURLOPT_POST, true);
