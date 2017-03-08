@@ -236,3 +236,42 @@ function drupout_webform_select_options_info() {
   return $items;
 }
 
+function drupout_token_info() {
+  $info['types']['drupout'] = array(
+    'name' => 'Drupout',
+    'needs-data' => 'submission',
+  );
+  $info['tokens']['submission']['drupout'] = array(
+    'name' => 'Drupout',
+    'type' => 'drupout'
+  );
+  $info['tokens']['drupout']['speakout_link'] = array(
+    'name' => 'Speakout URL',
+    'description' => t('A text that gives the link to the Speakout campaign if available, or how to get it.'),
+  );
+
+  return $info;
+}
+
+function drupout_tokens($type, $tokens, $data, $options) {
+  $replacements = array();
+  if ($type == 'submission') {
+    foreach ($tokens as $name => $original) {
+      switch ($name) {
+        case 'drupout:speakout_link':
+	  $node = $data['node'];
+	  $submission = $data['webform-submission'];
+	  $params = drupout_params($node, $submission);
+	  $template_id = drupout_template_id($params);
+	  if ($template_id != NULL) {
+	    $replacement = token_replace(t('Here it is: [submission:values:speakout_link]. Please get in touch if you want to add or change content of your petition.'), $data);
+	  } else {
+	    $replacement = t('Soon we will get in touch to keep moving forward and make sure your campaign is a success.');
+	  }
+          $replacements[$original] = $replacement;
+          break;
+      }
+    }
+  }
+  return $replacements;
+}
