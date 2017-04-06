@@ -75,6 +75,7 @@ function drupout_form2json($params) {
   $date_prefix = date('Ym');
   $language = strtoupper($params['language']);
   $img_file = file_load($params['add_an_image']);
+  $initiator = $params['civicrm_1_contact_1_contact_first_name'].' '.$params['civicrm_1_contact_1_contact_last_name'];
   $jsonData = array(
     'name' => $title,
     'slug' => drupout_slugify($title),
@@ -87,8 +88,9 @@ function drupout_form2json($params) {
     ),
     'variables' => array(
       'sign_advice' => array(
+        'initiator' => $initiator,
         'petition' => $params['what_do_you_want_them_to_do'],
-	'why_important' => $params['why_is_this_important']
+        'why_important' => $params['why_is_this_important']
       )
     )
   );
