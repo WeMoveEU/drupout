@@ -103,40 +103,123 @@ function drupout_form2json($params) {
  */ 
 function drupout_webform_submission_insert($node, $submission) {
   if ($node->nid == variable_get('drupout_submission_node')) {
-    $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
-    $user = variable_get('drupout_speakout_user');
-    $password = variable_get('drupout_speakout_password');
-
     $params = drupout_params($node, $submission);
-    $template_id = drupout_template_id($params);
-    if ($template_id != NULL) {
-      $jsonData = drupout_form2json($params);
-       
-      $url = "$root_endpoint/api/v1/campaigns/$template_id/clone";
-      $ch = curl_init($url);
-      curl_setopt($ch, CURLOPT_USERPWD, "$user:$password");
-      curl_setopt($ch, CURLOPT_POST, true);
-      curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); 
-      $jsonDataEncoded = json_encode($jsonData);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonDataEncoded);
-       
-      $result = curl_exec($ch);
-      if ($result) {
-	$call_info = curl_getinfo($ch);
-	if ($call_info['http_code'] != 201) {
-	  watchdog('drupout', print_r($call_info, true));
-	}
-      } else {
-	watchdog('drupout', "Unable to send campaign request to Speakout: " . curl_error($ch));
-	//TODO
-	//Send email to vesna? tech?
-      }
-
-      curl_close($ch);
-    } else {
-      watchdog('drupout', "Not creating Speakout campaign because " . $params['language'] . " is not supported.");
+    if ($params['ready_to_publish'] == '1') {
+      _drupout_create($node, $submission, $params);
     }
   }
+}
+
+function drupout_webform_submission_update($node, $submission) {
+  if ($node->nid == variable_get('drupout_submission_node')) {
+    $params = drupout_params($node, $submission);
+    if ($params['ready_to_publish'] == '1') {
+      if ($params['campaign_id']) {
+        _drupout_update($params);
+      } else {
+        _drupout_create($node, $submission, $params);
+      }
+    }
+  }
+}
+
+function _drupout_create($node, $submission, $params) {
+  $result = _drupout_call_template($params, 'clone');
+  if ($result) {
+    $camp = json_decode($result['response']);
+    foreach ($node->webform['components'] as $cid => $component) {
+      if ($component['form_key'] == 'campaign_id') {
+        $camp_cid = $cid;
+        break;
+      }
+    }
+    $data = array(
+      'nid' => $node->webform['nid'],
+      'sid' => $submission->sid,
+      'cid' => $camp_cid,
+      'no' => 0,
+      'data' => $camp->id,
+    );
+    drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
+  }
+}
+
+function _drupout_update($params) {
+  $result = _drupout_call_template($params, 'render');
+  if ($result) {
+    $rendered = json_decode($result['response'], true);
+    $attrs = array_diff(array_keys($result['input']), array('variables'));
+    $attrs = array_merge($attrs, array_keys($result['input']['variables']));
+    $jsonData = array_intersect_key($rendered, array_flip($attrs));
+
+    $user = variable_get('drupout_speakout_user');
+    $password = variable_get('drupout_speakout_password');
+    $url = _drupout_api_url("campaigns/".$params['campaign_id']);
+    $result = _drupout_curl($url, $jsonData, array(CURLOPT_USERPWD => "$user:$password", CURLOPT_CUSTOMREQUEST => 'PUT'));
+    if ($result) {
+      $call_info = $result['info'];
+      if ($call_info['http_code'] != 200) {
+        watchdog('drupout', "Unexpected status code: ".print_r($call_info, true));
+      }
+    }
+  }
+}
+
+function _drupout_call_template($params, $action) {
+  $template_id = drupout_template_id($params);
+  if ($template_id != NULL) {
+    $jsonData = drupout_form2json($params);
+    if ($action == 'clone') {
+      $expected_status = 201;
+    } else {
+      $expected_status = 200;
+      unset($jsonData['decisions_attr']);
+    }
+
+    $user = variable_get('drupout_speakout_user');
+    $password = variable_get('drupout_speakout_password');
+    $url = _drupout_api_url("campaigns/$template_id/$action");
+    $result = _drupout_curl($url, $jsonData, array(CURLOPT_USERPWD => "$user:$password"));
+    if ($result) {
+      $call_info = $result['info'];
+      if ($call_info['http_code'] != $expected_status) {
+        watchdog('drupout', "Unexpected status code: ".print_r($call_info, true));
+      } else {
+        return $result;
+      }
+    }
+  } else {
+    watchdog('drupout', "Cannot $action Speakout template because " . $params['language'] . " is not supported.");
+  }
+  return false;
+}
+
+function _drupout_api_url($path) {
+  $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
+  return "$root_endpoint/api/v1/$path";
+}
+
+function _drupout_curl($url, $data, $opts = NULL) {
+  $ch = curl_init($url);
+
+  curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); 
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  $jsonDataEncoded = json_encode($data);
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonDataEncoded);
+  curl_setopt_array($ch, $opts);
+   
+  $response = curl_exec($ch);
+  if ($response !== false) {
+    $call_info = curl_getinfo($ch);
+    $result = array('input' => $data, 'response' => $response, 'info' => $call_info);
+  } else {
+    $error = curl_error($ch);
+    watchdog('drupout', "Unable to call $url: $error");
+    $result = false;
+  }
+
+  curl_close($ch);
+  return $result;
 }
 
 /**
@@ -150,7 +233,7 @@ function drupout_menu() {
     'description' => "Settings to create Speakout campaigns from Drupal",
     'page callback' => 'drupal_get_form',
     'page arguments' => array('drupout_settings_form'),
-    'access arguments' => array('access administration pages'),
+    'access arguments' => array('administer site configuration'),
     'type' => MENU_NORMAL_ITEM
   );
 
