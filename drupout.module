@@ -18,17 +18,19 @@ function drupout_slugify($str, $sep='-') {
  * `speakout_link` value in the submission
  */
 function drupout_webform_submission_presave($node, &$submission) {
-  foreach ($node->webform['components'] as $cid => $component) {
-    if ($component['form_key'] == 'speakout_link') {
-      $link_cid = $cid;
+  if (_drupout_is_node_enabled($node)) {
+    foreach ($node->webform['components'] as $cid => $component) {
+      if ($component['form_key'] == 'speakout_link') {
+        $link_cid = $cid;
+      }
+      if ($component['form_key'] == 'civicrm_1_activity_1_activity_subject') {
+        $title = $submission->data[$cid][0];  
+      }
     }
-    if ($component['form_key'] == 'civicrm_1_activity_1_activity_subject') {
-      $title = $submission->data[$cid][0];  
-    }
+    $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
+    $slug = drupout_slugify($title);
+    $submission->data[$link_cid][0] = $root_endpoint . '/campaigns/' . $slug;
   }
-  $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
-  $slug = drupout_slugify($title);
-  $submission->data[$link_cid][0] = $root_endpoint . '/campaigns/' . $slug;
 }
 
 /**
@@ -57,9 +59,8 @@ function drupout_params($node, $submission) {
   return $params;
 }
 
-function drupout_template_id($params) {
+function drupout_template_id($lang) {
   $templates = drupout_language_templates();
-  $lang = $params['language'];
   if (isset($templates[$lang])) {
     return $templates[$lang];
   } else {
@@ -102,18 +103,18 @@ function drupout_form2json($params) {
  * Builds and sends the JSON to Speakout API
  */ 
 function drupout_webform_submission_insert($node, $submission) {
-  if ($node->nid == variable_get('drupout_submission_node')) {
+  if (_drupout_is_node_enabled($node)) {
     $params = drupout_params($node, $submission);
-    if ($params['ready_to_publish'] == '1') {
+    if (!isset($params['ready_to_publish']) || $params['ready_to_publish'] == '1') {
       _drupout_create($node, $submission, $params);
     }
   }
 }
 
 function drupout_webform_submission_update($node, $submission) {
-  if ($node->nid == variable_get('drupout_submission_node')) {
+  if (_drupout_is_node_enabled($node)) {
     $params = drupout_params($node, $submission);
-    if ($params['ready_to_publish'] == '1') {
+    if (!isset($params['ready_to_publish']) || $params['ready_to_publish'] == '1') {
       if ($params['campaign_id']) {
         _drupout_update($params);
       } else {
@@ -123,24 +124,26 @@ function drupout_webform_submission_update($node, $submission) {
   }
 }
 
+function _drupout_is_node_enabled($node) {
+  $node_ids = explode(',', variable_get('drupout_submission_node'));
+  return in_array($node->nid, $node_ids);
+}
+
 function _drupout_create($node, $submission, $params) {
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
     $camp = json_decode($result['response']);
-    foreach ($node->webform['components'] as $cid => $component) {
-      if ($component['form_key'] == 'campaign_id') {
-        $camp_cid = $cid;
-        break;
-      }
+    $camp_cid = _drupout_find_cid($node, 'campaign_id');
+    if ($camp_cid != NULL) {
+      $data = array(
+        'nid' => $node->webform['nid'],
+        'sid' => $submission->sid,
+        'cid' => $camp_cid,
+        'no' => 0,
+        'data' => $camp->id,
+      );
+      drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
     }
-    $data = array(
-      'nid' => $node->webform['nid'],
-      'sid' => $submission->sid,
-      'cid' => $camp_cid,
-      'no' => 0,
-      'data' => $camp->id,
-    );
-    drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
   }
 }
 
@@ -166,7 +169,7 @@ function _drupout_update($params) {
 }
 
 function _drupout_call_template($params, $action) {
-  $template_id = drupout_template_id($params);
+  $template_id = drupout_template_id($params['language']);
   if ($template_id != NULL) {
     $jsonData = drupout_form2json($params);
     if ($action == 'clone') {
@@ -222,6 +225,15 @@ function _drupout_curl($url, $data, $opts = NULL) {
   return $result;
 }
 
+function _drupout_find_cid($node, $key) {
+  foreach ($node->webform['components'] as $cid => $component) {
+    if ($component['form_key'] == $key) {
+      return $cid;
+    }
+  }
+  return NULL;
+}
+
 /**
  * Creates the item in the admin main page
  */
@@ -248,7 +260,7 @@ function drupout_settings_form($form, &$form_state) {
     '#type' => 'textfield',
     '#title' => t('Submission node'),
     '#default_value' => variable_get('drupout_submission_node'),
-    '#description' => t('Drupal node id with the webform to create/edit campaigns'),
+    '#description' => t('Drupal node ids (comma-separated) with the webform to create/edit campaigns'),
     '#required' => true
   );
   $form['drupout_endpoint'] = array(
@@ -347,7 +359,7 @@ function drupout_tokens($type, $tokens, $data, $options) {
 	  $node = $data['node'];
 	  $submission = $data['webform-submission'];
 	  $params = drupout_params($node, $submission);
-	  $template_id = drupout_template_id($params);
+	  $template_id = drupout_template_id($params['language']);
 	  if ($template_id != NULL) {
 	    $replacement = token_replace(t('Here it is: [submission:values:speakout_link]. Please get in touch if you want to add or change content of your petition.'), $data);
 	  } else {
