@@ -76,7 +76,13 @@ function drupout_form2json($params) {
   $date_prefix = date('Ym');
   $language = strtoupper($params['language']);
   $img_file = file_load($params['add_an_image']);
-  $initiator = $params['civicrm_1_contact_1_contact_first_name'].' '.$params['civicrm_1_contact_1_contact_last_name'];
+  if (isset($params['who_am_i']) && $params['who_am_i'] == '2') {
+    $initiator = $params['civicrm_2_contact_1_contact_organization_name'];
+    $layout_id = variable_get('drupout_org_layout');
+  } else {
+    $initiator = $params['civicrm_1_contact_1_contact_first_name'].' '.$params['civicrm_1_contact_1_contact_last_name'];
+    $layout_id = NULL;
+  }
   $jsonData = array(
     'name' => $title,
     'slug' => drupout_slugify($title),
@@ -84,6 +90,7 @@ function drupout_form2json($params) {
     'image_url' => file_create_url($img_file->uri),
     'description' => $params['add_texts_for_social_media_shares'],
     'twitter_share_text' => $params['add_texts_for_ttwitter'],
+    'custom_layout_id' => $layout_id,
     'decisions_attr' => array(
       'display_name' => $params['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']
     ),
@@ -289,6 +296,13 @@ function drupout_settings_form($form, &$form_state) {
     '#default_value' => variable_get('drupout_speakout_templates'),
     '#description' => t('Speakout templates'),
     '#required' => true
+  );
+  $form['drupout_org_layout'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Organisation layout id'),
+    '#default_value' => variable_get('drupout_org_layout'),
+    '#description' => t('Custom layout id for organisations'),
+    '#required' => false
   );
 
   return system_settings_form($form);
