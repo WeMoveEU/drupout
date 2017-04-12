@@ -48,6 +48,15 @@ function drupout_language_templates() {
   return $templates;
 }
 
+function drupout_template_id($lang) {
+  $templates = drupout_language_templates();
+  if (isset($templates[$lang])) {
+    return $templates[$lang];
+  } else {
+    return NULL;
+  }
+}
+
 /**
  * Returns an associative array($key => value) of the submission
  */
@@ -57,15 +66,6 @@ function drupout_params($node, $submission) {
     $params[$component['form_key']] = $submission->data[$cid][0];  
   }
   return $params;
-}
-
-function drupout_template_id($lang) {
-  $templates = drupout_language_templates();
-  if (isset($templates[$lang])) {
-    return $templates[$lang];
-  } else {
-    return NULL;
-  }
 }
 
 /**
@@ -107,7 +107,7 @@ function drupout_form2json($params) {
 }
 
 /**
- * Builds and sends the JSON to Speakout API
+ * If the submission is ready to publish, create the Speakout campaign
  */ 
 function drupout_webform_submission_insert($node, $submission) {
   if (_drupout_is_node_enabled($node)) {
@@ -118,6 +118,10 @@ function drupout_webform_submission_insert($node, $submission) {
   }
 }
 
+/**
+ * If the campaign has already been published, updates it.
+ * Otherwise if it is ready to publish, create it.
+ */
 function drupout_webform_submission_update($node, $submission) {
   if (_drupout_is_node_enabled($node)) {
     $params = drupout_params($node, $submission);
@@ -136,6 +140,10 @@ function _drupout_is_node_enabled($node) {
   return in_array($node->nid, $node_ids);
 }
 
+/**
+ * Call the clone API to create a campaign,
+ * and stores the returned campaign id in the submission data
+ */
 function _drupout_create($node, $submission, $params) {
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
@@ -154,10 +162,15 @@ function _drupout_create($node, $submission, $params) {
   }
 }
 
+/**
+ * Call the render API to determine the new campaign fields, 
+ * and use them to update the campaign
+ */
 function _drupout_update($params) {
   $result = _drupout_call_template($params, 'render');
   if ($result) {
     $rendered = json_decode($result['response'], true);
+    //Restrict the campaign attributes to those affected by the webform submission
     $attrs = array_diff(array_keys($result['input']), array('variables'));
     $attrs = array_merge($attrs, array_keys($result['input']['variables']));
     $jsonData = array_intersect_key($rendered, array_flip($attrs));
@@ -175,6 +188,10 @@ function _drupout_update($params) {
   }
 }
 
+/**
+ * Generic function to call the clone or render API on a campaign template.
+ * The call is performed only if the language of the submission has an associated template.
+ */
 function _drupout_call_template($params, $action) {
   $template_id = drupout_template_id($params['language']);
   if ($template_id != NULL) {
@@ -209,6 +226,9 @@ function _drupout_api_url($path) {
   return "$root_endpoint/api/v1/$path";
 }
 
+/**
+ * Generic curl wrapper for the purposes of this module
+ */
 function _drupout_curl($url, $data, $opts = NULL) {
   $ch = curl_init($url);
 

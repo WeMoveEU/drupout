@@ -1,8 +1,15 @@
 # Drupout
 
-Drupal module to create Speakout campaigns from a webform.
-After inserting the submission into DB, the module calls the Speakout API
-to clone a template and replace some variables in that template.
+Drupal module to create and edit Speakout campaigns from a webform. 
+## Create
+After the submission is saved into DB, the module calls the Speakout API
+to clone a template and replace some variables in that template. The 
+returned campaign ID is saved in DB to be able to edit the campaign later.
+
+## Edit
+After the submission is saved into DB, the module calls the Speakout API
+to render a template (that is: clone without saving). The rendered values
+are sent in a new API to edit the existing campaign.
 
 ## Setup
 ### API user
@@ -29,4 +36,7 @@ modified by replacing tokens with form values. For example, the value of the fie
 which means that Speakout will replace the token `{why_important}` in the sign advice
 with the value of the field `why_is_this_important`.
 
-See the function `drupout_form2json` for the details of how each form field is used.
+See the function `drupout_form2json` for the details of how each form field is used. 
+The expected structure of the webform is mostly hardcoded, at the moment 
+it is not possible to configure which webform fields go to which campaign fields.
+
