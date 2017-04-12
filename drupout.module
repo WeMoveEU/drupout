@@ -130,6 +130,24 @@ function drupout_webform_submission_update($node, $submission) {
         _drupout_update($params);
       } else {
         _drupout_create($node, $submission, $params);
+        //The email was not sent to campaigners on insert, send it now
+        webform_submission_send_mail($node, $submission);
+      }
+    }
+  }
+}
+
+/**
+ * Checks that the submission is ready to publish, block the mail sent to campaigners if not
+ */
+function drupout_mail_alter(&$message) {
+  if (isset($message['params']['node']) && isset($message['params']['submission'])) {
+    $node = $message['params']['node'];
+    $submission = $message['params']['submission'];
+    if (_drupout_is_node_enabled($node)) {
+      $params = drupout_params($node, $submission);
+      if (isset($params['ready_to_publish']) && $params['ready_to_publish'] == '0') {
+        $message['send'] = false;
       }
     }
   }
@@ -390,15 +408,15 @@ function drupout_tokens($type, $tokens, $data, $options) {
     foreach ($tokens as $name => $original) {
       switch ($name) {
         case 'drupout:speakout_link':
-	  $node = $data['node'];
-	  $submission = $data['webform-submission'];
-	  $params = drupout_params($node, $submission);
-	  $template_id = drupout_template_id($params['language']);
-	  if ($template_id != NULL) {
-	    $replacement = token_replace(t('Here it is: [submission:values:speakout_link]. Please get in touch if you want to add or change content of your petition.'), $data);
-	  } else {
-	    $replacement = t('Soon we will get in touch to keep moving forward and make sure your campaign is a success.');
-	  }
+          $node = $data['node'];
+          $submission = $data['webform-submission'];
+          $params = drupout_params($node, $submission);
+          $template_id = drupout_template_id($params['language']);
+          if ($template_id != NULL) {
+            $replacement = token_replace(t('Here it is: [submission:values:speakout_link]. Please get in touch if you want to add or change content of your petition.'), $data);
+          } else {
+            $replacement = t('Soon we will get in touch to keep moving forward and make sure your campaign is a success.');
+          }
           $replacements[$original] = $replacement;
           break;
       }
