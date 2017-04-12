@@ -132,7 +132,11 @@ function drupout_webform_submission_update($node, $submission) {
         _drupout_create($node, $submission, $params);
         //The email was not sent to campaigners on insert, send it now
         webform_submission_send_mail($node, $submission);
+        $token_data = array('node' => $node, 'webform-submission' => $submission);
+        drupal_set_message(token_replace(variable_get('drupout_message_created'), $token_data));
       }
+    } else {
+      drupal_set_message(variable_get('drupout_message_notready'));
     }
   }
 }
@@ -308,6 +312,28 @@ function drupout_settings_form($form, &$form_state) {
     '#description' => t('Drupal node ids (comma-separated) with the webform to create/edit campaigns'),
     '#required' => true
   );
+
+  $form['drupout_messages'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Confirmation messages'),
+    '#collapsible' => false
+  );
+  $form['drupout_messages']['drupout_message_notready'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Submission not ready to publish'),
+    '#default_value' => variable_get('drupout_message_notready'),
+  );
+  $form['drupout_messages']['drupout_message_notcreated'] = array(
+    '#type' => 'textarea',
+    '#title' => t('The campaign was not created (language not supported)'),
+    '#default_value' => variable_get('drupout_message_notcreated'),
+  );
+  $form['drupout_messages']['drupout_message_created'] = array(
+    '#type' => 'textarea',
+    '#title' => t('The campaign was created'),
+    '#default_value' => variable_get('drupout_message_created'),
+  );
+
   $form['drupout_endpoint'] = array(
     '#type' => 'textfield',
     '#title' => t('Speakout URL'),
@@ -394,9 +420,9 @@ function drupout_token_info() {
     'name' => 'Drupout',
     'type' => 'drupout'
   );
-  $info['tokens']['drupout']['speakout_link'] = array(
-    'name' => 'Speakout URL',
-    'description' => t('A text that gives the link to the Speakout campaign if available, or how to get it.'),
+  $info['tokens']['drupout']['confirm_msg'] = array(
+    'name' => 'Confirmation message',
+    'description' => t('A form confirmation message that depends on whether it is ready to be published and whether its language is supported.'),
   );
 
   return $info;
@@ -407,15 +433,19 @@ function drupout_tokens($type, $tokens, $data, $options) {
   if ($type == 'submission') {
     foreach ($tokens as $name => $original) {
       switch ($name) {
-        case 'drupout:speakout_link':
+        case 'drupout:confirm_msg':
           $node = $data['node'];
           $submission = $data['webform-submission'];
           $params = drupout_params($node, $submission);
-          $template_id = drupout_template_id($params['language']);
-          if ($template_id != NULL) {
-            $replacement = token_replace(t('Here it is: [submission:values:speakout_link]. Please get in touch if you want to add or change content of your petition.'), $data);
+          if (isset($params['ready_to_publish']) && $params['ready_to_publish'] == '0') {
+            $replacement = variable_get('drupout_message_notready');
           } else {
-            $replacement = t('Soon we will get in touch to keep moving forward and make sure your campaign is a success.');
+            $template_id = drupout_template_id($params['language']);
+            if ($template_id != NULL) {
+              $replacement = token_replace(variable_get('drupout_message_created'), $data);
+            } else {
+              $replacement = variable_get('drupout_message_notcreated');
+            }
           }
           $replacements[$original] = $replacement;
           break;
@@ -424,3 +454,20 @@ function drupout_tokens($type, $tokens, $data, $options) {
   }
   return $replacements;
 }
+
+function drupout_variable_info($options) {
+  $variables['drupout_message_notready'] = array(
+    'title' => t('Submission not ready to publish'),
+    'type' => 'string',
+  );
+  $variables['drupout_message_notcreated'] = array(
+    'title' => t('The campaign was not created (language not supported)'),
+    'type' => 'string',
+  );
+  $variables['drupout_message_created'] = array(
+    'title' => t('The campaign was created'),
+    'type' => 'string',
+  );
+  return $variables;
+}
+
