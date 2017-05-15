@@ -193,7 +193,7 @@ function _drupout_update($params) {
   if ($result) {
     $rendered = json_decode($result['response'], true);
     //Restrict the campaign attributes to those affected by the webform submission
-    $attrs = array_diff(array_keys($result['input']), array('variables', 'internal_name'));
+    $attrs = array_diff(array_keys($result['input']), array('variables', 'internal_name', 'slug'));
     $attrs = array_merge($attrs, array_keys($result['input']['variables']));
     $jsonData = array_intersect_key($rendered, array_flip($attrs));
 
