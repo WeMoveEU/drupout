@@ -94,7 +94,7 @@ function drupout_form2json($params) {
     'decisions_attr' => array(
       'display_name' => $params['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']
     ),
-    'variables' => array(
+    'render_context' => array(
       'sign_advice' => array(
         'initiator' => $initiator,
         'petition' => $params['what_do_you_want_them_to_do'],
@@ -193,8 +193,8 @@ function _drupout_update($params) {
   if ($result) {
     $rendered = json_decode($result['response'], true);
     //Restrict the campaign attributes to those affected by the webform submission
-    $attrs = array_diff(array_keys($result['input']), array('variables', 'internal_name', 'slug'));
-    $attrs = array_merge($attrs, array_keys($result['input']['variables']));
+    $attrs = array_diff(array_keys($result['input']), array('render_context', 'internal_name', 'slug'));
+    $attrs = array_merge($attrs, array_keys($result['input']['render_context']));
     $jsonData = array_intersect_key($rendered, array_flip($attrs));
 
     $user = variable_get('drupout_speakout_user');
