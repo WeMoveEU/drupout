@@ -24,7 +24,7 @@ function drupout_webform_submission_presave($node, &$submission) {
         $link_cid = $cid;
       }
       if ($component['form_key'] == 'civicrm_1_activity_1_activity_subject') {
-        $title = $submission->data[$cid][0];  
+        $title = $submission->data[$cid][0];
       }
     }
     $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
@@ -63,7 +63,7 @@ function drupout_template_id($lang) {
 function drupout_params($node, $submission) {
   $params = array();
   foreach ($node->webform['components'] as $cid => $component) {
-    $params[$component['form_key']] = $submission->data[$cid][0];  
+    $params[$component['form_key']] = $submission->data[$cid][0];
   }
   return $params;
 }
@@ -108,7 +108,7 @@ function drupout_form2json($params) {
 
 /**
  * If the submission is ready to publish, create the Speakout campaign
- */ 
+ */
 function drupout_webform_submission_insert($node, $submission) {
   if (_drupout_is_node_enabled($node)) {
     $params = drupout_params($node, $submission);
@@ -150,7 +150,7 @@ function drupout_mail_alter(&$message) {
     $submission = $message['params']['submission'];
     if (_drupout_is_node_enabled($node)) {
       $params = drupout_params($node, $submission);
-      if (isset($params['ready_to_publish']) && $params['ready_to_publish'] == '0') {
+      if (isset($params['ready_to_publish']) && $params['ready_to_publish'] != '1') {
         $message['send'] = false;
       }
     }
@@ -185,7 +185,7 @@ function _drupout_create($node, $submission, $params) {
 }
 
 /**
- * Call the render API to determine the new campaign fields, 
+ * Call the render API to determine the new campaign fields,
  * and use them to update the campaign
  */
 function _drupout_update($params) {
@@ -254,12 +254,12 @@ function _drupout_api_url($path) {
 function _drupout_curl($url, $data, $opts = NULL) {
   $ch = curl_init($url);
 
-  curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json')); 
+  curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
   $jsonDataEncoded = json_encode($data);
   curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonDataEncoded);
   curl_setopt_array($ch, $opts);
-   
+
   $response = curl_exec($ch);
   if ($response !== false) {
     $call_info = curl_getinfo($ch);
@@ -404,8 +404,8 @@ function drupout_webform_select_options_info() {
   $items = array();
 
   $items['youmove_langs'] = array(
-    'title' => t('Youmove languages'), 
-    'options callback' => 'drupout_youmove_languages', 
+    'title' => t('Youmove languages'),
+    'options callback' => 'drupout_youmove_languages',
   );
 
   return $items;
@@ -437,7 +437,7 @@ function drupout_tokens($type, $tokens, $data, $options) {
           $node = $data['node'];
           $submission = $data['webform-submission'];
           $params = drupout_params($node, $submission);
-          if (isset($params['ready_to_publish']) && $params['ready_to_publish'] == '0') {
+          if (isset($params['ready_to_publish']) && $params['ready_to_publish'] != '1') {
             $replacement = variable_get('drupout_message_notready');
           } else {
             $template_id = drupout_template_id($params['language']);
