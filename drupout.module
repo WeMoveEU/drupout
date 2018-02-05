@@ -76,8 +76,9 @@ function drupout_form2json($params) {
   $date_prefix = date('Ym');
   $language = strtoupper($params['language']);
   $img_file = file_load($params['add_an_image']);
-  if (isset($params['who_am_i']) && $params['who_am_i'] == '2') {
-    $initiator = $params['civicrm_2_contact_1_contact_organization_name'];
+  $p_org_name = 'civicrm_2_contact_1_contact_organization_name';
+  if (isset($params[$p_org_name]) && trim($params[$p_org_name])) {
+    $initiator = $params[$p_org_name];
     $layout_id = variable_get('drupout_org_layout');
   } else {
     $initiator = $params['civicrm_1_contact_1_contact_first_name'].' '.$params['civicrm_1_contact_1_contact_last_name'];
