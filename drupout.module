@@ -98,8 +98,8 @@ function drupout_form2json($params) {
     'render_context' => array(
       'sign_advice' => array(
         'initiator' => $initiator,
-        'petition' => $params['what_do_you_want_them_to_do'],
-        'why_important' => $params['why_is_this_important']
+        'petition' => nl2br(check_plain($params['what_do_you_want_them_to_do'])),
+        'why_important' => nl2br(check_plain($params['why_is_this_important']))
       )
     )
   );
