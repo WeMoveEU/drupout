@@ -27,10 +27,14 @@ function drupout_webform_submission_presave($node, &$submission) {
         $title = $submission->data[$cid][0];
       }
     }
-    $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
-    $slug = drupout_slugify($title);
-    $submission->data[$link_cid][0] = $root_endpoint . '/campaigns/' . $slug;
+    $submission->data[$link_cid][0] = _drupout_speakout_link($title);
   }
+}
+
+function _drupout_speakout_link($title) {
+  $root_endpoint = variable_get('drupout_endpoint', 'http://localhost:3000');
+  $slug = drupout_slugify($title);
+  return $root_endpoint . '/campaigns/' . $slug;
 }
 
 /**
@@ -58,7 +62,7 @@ function drupout_template_id($lang) {
 }
 
 /**
- * Returns an associative array($key => value) of the submission
+ * Returns an associative array($form_key => value) of a webform submission
  */
 function drupout_params($node, $submission) {
   $params = array();
@@ -66,6 +70,25 @@ function drupout_params($node, $submission) {
     $params[$component['form_key']] = $submission->data[$cid][0];
   }
   return $params;
+}
+
+/**
+ * Recursively scan the submitted data of a form
+ * and returns an associative array($form_key => $value)
+ */
+function _drupout_submitted($submitted) {
+  $result = array();
+  foreach ($submitted as $key => $value) {
+    if (is_array($value) and isset($value['#type'])) {
+      if ($value['#type'] == 'fieldset') {
+        $result = array_merge($result, _drupout_submitted($value));
+      }
+      else {
+        $result[$key] = $value['#value'];
+      }
+    }
+  }
+  return $result;
 }
 
 /**
@@ -138,6 +161,32 @@ function drupout_webform_submission_update($node, $submission) {
       }
     } else {
       drupal_set_message(variable_get('drupout_message_notready'));
+    }
+  }
+}
+
+function drupout_form_alter(&$form, &$form_state, $form_id) {
+  if (_drupout_is_node_enabled($form['#node'])) {
+    $form['#submit'][] = '_drupout_redirect_to_speakout';
+  }
+}
+
+/**
+ * Submit handler that redirects to the Speakout campaign
+ * if the submitted campaign is set as published
+ */
+function _drupout_redirect_to_speakout(&$form, &$form_state) {
+  if ($form_state['submitted']) {
+    $params = _drupout_submitted($form['submitted']);
+    if ($params['ready_to_publish'][1] == '1') {
+      $redirect_url = $params['speakout_link'];
+      if (!$redirect_url) {
+        $title = $params['civicrm_1_activity_1_activity_subject'];
+        $redirect_url = _drupout_speakout_link($title);
+      }
+      $parsed_redirect_url = drupal_parse_url($redirect_url);
+      $redirect = array($parsed_redirect_url['path'], $parsed_redirect_url);
+      $form_state['redirect'] = $redirect;
     }
   }
 }
