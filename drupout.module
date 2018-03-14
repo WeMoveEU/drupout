@@ -192,6 +192,48 @@ function _drupout_redirect_to_speakout(&$form, &$form_state) {
 }
 
 /**
+ * Login hook: when the user is a youmove campaigner,
+ * refresh the youmove campaigns cookie
+ */
+function drupout_user_login(&$edit, $account) {
+  if (in_array('youmove_campaigner', $account->roles)) {
+    _drupout_rebuild_cookie($account->uid);
+  }
+}
+
+/**
+ * Set or reset a cookie with the list of edit URLs for all the user submissions,
+ * indexed by the speakout campaign id.
+ * The cookie is set at the entire domain level, so that Speakout can read it
+ * in order to display an edit link when the user is visiting their campaign.
+ */
+function _drupout_rebuild_cookie($uid) {
+  module_load_include('inc', 'webform', 'includes/webform.submissions');
+  $node_ids = explode(',', variable_get('drupout_submission_node'));
+  $filters = array('nid' => $node_ids, 'uid' => $uid);
+  $submissions = webform_get_submissions($filters);
+  $nodes = node_load_multiple($node_ids);
+  $campaigns = array();
+  foreach ($submissions as $submission) {
+    $data = drupout_params($nodes[$submission->nid], $submission);
+    if (isset($data['campaign_id']) && !empty($data['campaign_id'])) {
+      $edit_path = "node/$submission->nid/submission/$submission->sid/edit";
+      $campaigns[$data['campaign_id']] = array('edit_url' => url($edit_path, array('absolute' => TRUE)));
+    }
+  }
+  setcookie('youmove_campaigns', json_encode($campaigns), time()+60*60*24*30, '/', '.wemove.eu');
+}
+
+/**
+ * Deletes the youmove campaigns cookie
+ */
+function drupout_user_logout($account) {
+  if (in_array('youmove_campaigner', $account->roles)) {
+    setcookie('youmove_campaigns', '', 0, '/', '.wemove.eu');
+  }
+}
+
+/**
  * Checks that the submission is ready to publish, block the mail sent to campaigners if not
  */
 function drupout_mail_alter(&$message) {
@@ -232,6 +274,7 @@ function _drupout_create($node, $submission, $params) {
       drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
     }
   }
+  _drupout_rebuild_cookie($submission->uid);
 }
 
 /**
