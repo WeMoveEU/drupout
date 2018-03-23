@@ -19,15 +19,25 @@ function drupout_slugify($str, $sep='-') {
  */
 function drupout_webform_submission_presave($node, &$submission) {
   if (_drupout_is_node_enabled($node)) {
-    foreach ($node->webform['components'] as $cid => $component) {
-      if ($component['form_key'] == 'speakout_link') {
-        $link_cid = $cid;
+    $data = drupout_params($node, $submission);
+
+    if (_drupout_ready_to_publish($data)) {
+      $title = $data['civicrm_1_activity_1_activity_subject'];
+      if (empty($data['speakout_link'])) {
+        $submission->data[$data['speakout_link_cid']][0] = _drupout_speakout_link($title);
       }
-      if ($component['form_key'] == 'civicrm_1_activity_1_activity_subject') {
-        $title = $submission->data[$cid][0];
+      $link = $submission->data[$data['speakout_link_cid']][0];
+
+      if (empty(trim($data['add_texts_for_ttwitter']))) {
+        $twitter_msg = "$title - Join me & sign the petition!";
+        $submission->data[$data['add_texts_for_ttwitter_cid']][0] = $twitter_msg;
+      }
+
+      if (empty(trim($data['add_texts_for_social_media_shares']))) {
+        $fb_msg = substr($data['why_is_this_important'], 0, 300);
+        $submission->data[$data['add_texts_for_social_media_shares_cid']][0] = $fb_msg;
       }
     }
-    $submission->data[$link_cid][0] = _drupout_speakout_link($title);
   }
 }
 
@@ -67,7 +77,9 @@ function drupout_template_id($lang) {
 function drupout_params($node, $submission) {
   $params = array();
   foreach ($node->webform['components'] as $cid => $component) {
-    $params[$component['form_key']] = $submission->data[$cid][0];
+    $key = $component['form_key'];
+    $params[$key] = $submission->data[$cid][0];
+    $params["{$key}_cid"] = $cid;
   }
   return $params;
 }
@@ -136,7 +148,7 @@ function drupout_form2json($params) {
 function drupout_webform_submission_insert($node, $submission) {
   if (_drupout_is_node_enabled($node)) {
     $params = drupout_params($node, $submission);
-    if (!isset($params['ready_to_publish']) || $params['ready_to_publish'] == '1') {
+    if (_drupout_ready_to_publish($params)) {
       _drupout_create($node, $submission, $params);
     }
   }
@@ -149,7 +161,7 @@ function drupout_webform_submission_insert($node, $submission) {
 function drupout_webform_submission_update($node, $submission) {
   if (_drupout_is_node_enabled($node)) {
     $params = drupout_params($node, $submission);
-    if (!isset($params['ready_to_publish']) || $params['ready_to_publish'] == '1') {
+    if (_drupout_ready_to_publish($params)) {
       if ($params['campaign_id']) {
         _drupout_update($params);
       } else {
@@ -252,6 +264,10 @@ function drupout_mail_alter(&$message) {
 function _drupout_is_node_enabled($node) {
   $node_ids = explode(',', variable_get('drupout_submission_node'));
   return in_array($node->nid, $node_ids);
+}
+
+function _drupout_ready_to_publish($form_data) {
+  return !isset($form_data['ready_to_publish']) || ($form_data['ready_to_publish'] == '1');
 }
 
 /**
