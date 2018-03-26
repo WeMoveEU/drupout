@@ -233,7 +233,11 @@ function _drupout_rebuild_cookie($uid) {
       $campaigns[$data['campaign_id']] = array('edit_url' => url($edit_path, array('absolute' => TRUE)));
     }
   }
-  setcookie('youmove_campaigns', json_encode($campaigns), time()+60*60*24*30, '/', '.wemove.eu');
+  $cookie = array(
+    'campaigns' => $campaigns,
+    'dashboard_url' => url('you/dashboard', array('absolute' => TRUE))
+  );
+  setcookie('youmove_campaigns', json_encode($cookie), time()+60*60*24*30, '/', '.wemove.eu');
 }
 
 /**
