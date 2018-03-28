@@ -188,7 +188,7 @@ function drupout_form_alter(&$form, &$form_state, $form_id) {
  * if the submitted campaign is set as published
  */
 function _drupout_redirect_to_speakout(&$form, &$form_state) {
-  if ($form_state['submitted']) {
+  if ($form['webform_completed']) {
     $params = _drupout_submitted($form['submitted']);
     if ($params['ready_to_publish'][1] == '1') {
       $redirect_url = $params['speakout_link'];
