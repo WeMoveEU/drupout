@@ -29,7 +29,7 @@ function drupout_webform_submission_presave($node, &$submission) {
       $link = $submission->data[$data['speakout_link_cid']][0];
 
       if (empty(trim($data['add_texts_for_ttwitter']))) {
-        $twitter_msg = "$title - Join me & sign the petition!";
+        $twitter_msg = "$title - " . t("Join me & sign the petition!");
         $submission->data[$data['add_texts_for_ttwitter_cid']][0] = $twitter_msg;
       }
 
