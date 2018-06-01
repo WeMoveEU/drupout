@@ -235,7 +235,7 @@ function _drupout_rebuild_cookie($uid) {
   }
   $cookie = array(
     'campaigns' => $campaigns,
-    'dashboard_url' => url('you/dashboard', array('absolute' => TRUE))
+    'dashboard_url' => url(t('you/my-campaigns'), array('absolute' => TRUE))
   );
   setcookie('youmove_campaigns', json_encode($cookie), time()+60*60*24*30, '/', '.wemove.eu');
 }
