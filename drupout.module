@@ -187,7 +187,7 @@ function drupout_form_alter(&$form, &$form_state, $form_id) {
  * Submit handler that redirects to the Speakout campaign
  * if the submitted campaign is set as published
  */
-function _drupout_redirect_to_speakout(&$form, &$form_state) {
+function _drupout_redirect_to_speakout(&$form, &$form_state){
   if ($form['webform_completed']) {
     $params = _drupout_submitted($form['submitted']);
     if ($params['ready_to_publish'][1] == '1') {
@@ -584,3 +584,31 @@ function drupout_variable_info($options) {
   return $variables;
 }
 
+function drupout_block_info() {
+  return [
+    'member_count' => [
+      'info' => 'Join the movement of'
+    ]
+  ];
+}
+
+function drupout_block_view($delta) {
+  if ($cache = cache_get('wemove_members_count')) {
+    $count = $cache->data;
+  } else {
+    civicrm_initialize();
+    $count = civicrm_api3('GroupContact', 'getcount', array('group_id' => 42, 'status' => 'Added'));
+    cache_set('wemove_members_count', $count, 'cache', time() + 60 * 60 * 24);
+  }
+
+  $members = "<span class=\"blue\">$count</span>";
+  $url = 'https://act.wemove.eu/campaigns/join-wemove';
+  $label = t('Join the movement of !members europeans', ['!members' => $members]);
+
+  return [
+    'content' => [
+      '#type' => 'markup',
+      '#markup' => "<span id=\"join-counter\"><a href=\"$url\">$label</a></span>",
+    ]
+  ];
+}
