@@ -168,8 +168,6 @@ function drupout_webform_submission_update($node, $submission) {
         _drupout_create($node, $submission, $params);
         //The email was not sent to campaigners on insert, send it now
         webform_submission_send_mail($node, $submission);
-        $token_data = array('node' => $node, 'webform-submission' => $submission);
-        drupal_set_message(token_replace(variable_get('drupout_message_created'), $token_data));
       }
     } else {
       drupal_set_message(variable_get('drupout_message_notready'));
@@ -441,11 +439,6 @@ function drupout_settings_form($form, &$form_state) {
     '#title' => t('The campaign was not created (language not supported)'),
     '#default_value' => variable_get('drupout_message_notcreated'),
   );
-  $form['drupout_messages']['drupout_message_created'] = array(
-    '#type' => 'textarea',
-    '#title' => t('The campaign was created'),
-    '#default_value' => variable_get('drupout_message_created'),
-  );
 
   $form['drupout_endpoint'] = array(
     '#type' => 'textfield',
@@ -555,7 +548,7 @@ function drupout_tokens($type, $tokens, $data, $options) {
           } else {
             $template_id = drupout_template_id($params['language']);
             if ($template_id != NULL) {
-              $replacement = token_replace(variable_get('drupout_message_created'), $data);
+              $replacement = '';
             } else {
               $replacement = variable_get('drupout_message_notcreated');
             }
@@ -575,10 +568,6 @@ function drupout_variable_info($options) {
   );
   $variables['drupout_message_notcreated'] = array(
     'title' => t('The campaign was not created (language not supported)'),
-    'type' => 'string',
-  );
-  $variables['drupout_message_created'] = array(
-    'title' => t('The campaign was created'),
     'type' => 'string',
   );
   return $variables;
