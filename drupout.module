@@ -107,18 +107,24 @@ function _drupout_submitted($submitted) {
  * Converts the submitted value into a JSON object that can be sent to Speakout
  */
 function drupout_form2json($params) {
+  global $user;
   $title = $params['civicrm_1_activity_1_activity_subject'];
   $date_prefix = date('Ym');
   $language = strtoupper($params['language']);
   $img_file = file_load($params['add_an_image']);
-  $p_org_name = 'civicrm_2_contact_1_contact_organization_name';
-  if (isset($params[$p_org_name]) && trim($params[$p_org_name])) {
-    $initiator = $params[$p_org_name];
-    $layout_id = variable_get('drupout_org_layout');
-  } else {
-    $initiator = $params['civicrm_1_contact_1_contact_first_name'].' '.$params['civicrm_1_contact_1_contact_last_name'];
-    $layout_id = NULL;
+
+  if ($user->uid) {
+    //Function comes from webform_youmove module
+    $contact = _civicrm_user_profile_get_contact($user->uid);
+    if ($contact['current_employer']) {
+      $initiator = $contact['current_employer'];
+      $layout_id = variable_get('drupout_org_layout');
+    } else {
+      $initiator = $contact['display_name'];
+      $layout_id = NULL;
+    }
   }
+
   $jsonData = array(
     'name' => $title,
     'slug' => drupout_slugify($title),
