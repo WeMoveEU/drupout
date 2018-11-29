@@ -129,6 +129,7 @@ function drupout_form2json($params) {
     'name' => $title,
     'slug' => drupout_slugify($title),
     'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-' . $language,
+    'language' => $params['language'],
     'image_url' => $img_file->uri ? file_create_url($img_file->uri) : '',
     'description' => $params['add_texts_for_social_media_shares'],
     'twitter_share_text' => $params['add_texts_for_ttwitter'],
