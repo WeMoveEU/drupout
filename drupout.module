@@ -134,6 +134,7 @@ function drupout_form2json($params) {
     'description' => $params['add_texts_for_social_media_shares'],
     'twitter_share_text' => $params['add_texts_for_ttwitter'],
     'custom_layout_id' => $layout_id,
+    'parent_campaign_id' => $params['parent_campaign_id'],
     'decisions_attr' => array(
       'display_name' => $params['who_are_you_addressing_who_in_the_european_union_can_make_this_happen']
     ),
@@ -284,6 +285,8 @@ function _drupout_ready_to_publish($form_data) {
  * and stores the returned campaign id in the submission data
  */
 function _drupout_create($node, $submission, $params) {
+  $parent = _drupout_create_parent($params);
+  $params['parent_campaign_id'] = $parent->id;
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
     $camp = json_decode($result['response']);
@@ -329,6 +332,25 @@ function _drupout_update($params) {
 }
 
 /**
+ * Create a parent campaign for the petition being submitted.
+ */
+function _drupout_create_parent($params) {
+  $title = $params['civicrm_1_activity_1_activity_subject'];
+  $date_prefix = date('Ym');
+  $jsonData = array(
+    'name' => $title . " parent",
+    'slug' => drupout_slugify($title) . '-parent',
+    'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-PARENT',
+    'journey' => 'simple',
+  );
+
+  $api_result = _drupout_call_api('campaigns', $jsonData, 201);
+  if ($api_result) {
+    return json_decode($api_result['response']);
+  }
+}
+
+/**
  * Generic function to call the clone or render API on a campaign template.
  * The call is performed only if the language of the submission has an associated template.
  */
@@ -343,22 +365,27 @@ function _drupout_call_template($params, $action) {
       unset($jsonData['decisions_attr']);
     }
 
-    $user = variable_get('drupout_speakout_user');
-    $password = variable_get('drupout_speakout_password');
-    $url = _drupout_api_url("campaigns/$template_id/$action");
-    $result = _drupout_curl($url, $jsonData, array(CURLOPT_USERPWD => "$user:$password"));
-    if ($result) {
-      $call_info = $result['info'];
-      if ($call_info['http_code'] != $expected_status) {
-        watchdog('drupout', "Unexpected status code: ".print_r($call_info, true));
-      } else {
-        return $result;
-      }
-    }
+    return _drupout_call_api("campaigns/$template_id/$action" , $jsonData, $expected_status);
   } else {
     watchdog('drupout', "Cannot $action Speakout template because " . $params['language'] . " is not supported.");
   }
   return false;
+}
+
+function _drupout_call_api($path, $jsonData, $expected_status) {
+  $user = variable_get('drupout_speakout_user');
+  $password = variable_get('drupout_speakout_password');
+  $url = _drupout_api_url($path);
+  $result = _drupout_curl($url, $jsonData, array(CURLOPT_USERPWD => "$user:$password"));
+  if ($result) {
+    $call_info = $result['info'];
+    if ($call_info['http_code'] != $expected_status) {
+      watchdog('drupout', "Unexpected status code: " . print_r($call_info, true));
+      watchdog('drupout', "Response: " . print_r($result['response'], true));
+    } else {
+      return $result;
+    }
+  }
 }
 
 function _drupout_api_url($path) {
