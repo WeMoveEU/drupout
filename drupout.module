@@ -285,8 +285,10 @@ function _drupout_ready_to_publish($form_data) {
  * and stores the returned campaign id in the submission data
  */
 function _drupout_create($node, $submission, $params) {
-  $parent = _drupout_create_parent($params);
-  $params['parent_campaign_id'] = $parent->id;
+  if (!$params['parent_campaign_id']) {
+    $parent = _drupout_create_parent($params);
+    $params['parent_campaign_id'] = $parent->id;
+  }
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
     $camp = json_decode($result['response']);
@@ -298,6 +300,17 @@ function _drupout_create($node, $submission, $params) {
         'cid' => $camp_cid,
         'no' => 0,
         'data' => $camp->id,
+      );
+      drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
+    }
+    $parent_cid = _drupout_find_cid($node, 'parent_campaign_id');
+    if ($parent_cid != NULL) {
+      $data = array(
+        'nid' => $node->webform['nid'],
+        'sid' => $submission->sid,
+        'cid' => $parent_cid,
+        'no' => 0,
+        'data' => $camp->parent_campaign_id,
       );
       drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
     }
