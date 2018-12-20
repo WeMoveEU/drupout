@@ -6,11 +6,13 @@
  */
 
 /**
- * Simple slugifiyer
- * Replaces all non-slug characters with $sep
+ * Transliterate the given string and replace all non-slug characters with $sep.
+ * Replace repeated $sep with single occurence, and trim the result from $sep.
  */
 function drupout_slugify($str, $sep='-') {
-  return strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $str));
+  $transtr = transliteration_get($str, '');
+  $dirty_slug = strtolower(preg_replace('/[^a-zA-Z0-9-_]+/', $sep, $transtr));
+  return trim(preg_replace("/$sep{2,}/", $sep, $dirty_slug), $sep);
 }
 
 /**
