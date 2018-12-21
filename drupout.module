@@ -341,6 +341,7 @@ function _drupout_update($params) {
   if ($result) {
     $rendered = json_decode($result['response'], true);
 
+    $path = "campaigns/" . $params['campaign_id'];
     //Restrict the campaign attributes to those affected by the webform submission
     $attrs = array_diff(
         array_keys($result['input']),
@@ -349,16 +350,7 @@ function _drupout_update($params) {
     $attrs = array_merge($attrs, array_keys($result['input']['render_context']));
     $jsonData = array_intersect_key($rendered, array_flip($attrs));
 
-    $user = variable_get('drupout_speakout_user');
-    $password = variable_get('drupout_speakout_password');
-    $url = _drupout_api_url("campaigns/".$params['campaign_id']);
-    $result = _drupout_curl($url, $jsonData, array(CURLOPT_USERPWD => "$user:$password", CURLOPT_CUSTOMREQUEST => 'PUT'));
-    if ($result) {
-      $call_info = $result['info'];
-      if ($call_info['http_code'] != 200) {
-        watchdog('drupout', "Unexpected status code: ".print_r($call_info, true));
-      }
-    }
+    return _drupout_call_api($path, $jsonData, 200, [CURLOPT_CUSTOMREQUEST => 'PUT']);
   }
 }
 
@@ -419,11 +411,11 @@ function _drupout_call_template($params, $action) {
   return false;
 }
 
-function _drupout_call_api($path, $jsonData, $expected_status) {
+function _drupout_call_api($path, $jsonData, $expected_status, $options = []) {
   $user = variable_get('drupout_speakout_user');
   $password = variable_get('drupout_speakout_password');
   $url = _drupout_api_url($path);
-  $result = _drupout_curl($url, $jsonData, array(CURLOPT_USERPWD => "$user:$password"));
+  $result = _drupout_curl($url, $jsonData, $options + array(CURLOPT_USERPWD => "$user:$password"));
   if ($result) {
     $call_info = $result['info'];
     if ($call_info['http_code'] != $expected_status) {
