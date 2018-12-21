@@ -119,6 +119,11 @@ function drupout_form2json($params) {
   } else {
     $language_name = NULL;
   }
+  if (isset($params['internal_name'])) {
+    $internal_name = $params['internal_name'];
+  } else {
+    $internal_name = drupout_slugify($title, '_');
+  }
   $img_file = file_load($params['add_an_image']);
 
   if ($user->uid) {
@@ -136,7 +141,7 @@ function drupout_form2json($params) {
   $jsonData = array(
     'name' => $title,
     'slug' => drupout_slugify($title),
-    'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-' . $language,
+    'internal_name' => "$date_prefix-$internal_name-$language",
     'language' => $params['language'],
     'switcher_name' => $language_name,
     'image_url' => $img_file->uri ? file_create_url($img_file->uri) : '',
@@ -291,37 +296,37 @@ function _drupout_ready_to_publish($form_data) {
 
 /**
  * Call the clone API to create a campaign,
- * and stores the returned campaign id in the submission data
+ * and stores the returned campaign id in the submission data.
+ * Depending on whether the submission is a translation, either associate
+ * or create the parent campaign.
+ * When the submission is a translation, the internal of the parent is re-used.
  */
 function _drupout_create($node, $submission, $params) {
-  if (!$params['parent_campaign_id']) {
+  module_load_include('inc', 'webform', 'includes/webform.submissions');
+
+  if ($params['is_translation'] == 1 && $params['parent_campaign_id']) {
+    $submissions = webform_get_submissions(['nid' => $node->nid, 'uid' => $submission->uid]);
+    foreach ($submissions as $submission) {
+      $data = drupout_params($node, $submission);
+      if ($data['is_translation'] != '1' && $data['parent_campaign_id'] == $params['parent_campaign_id']) {
+        $parent_url = $data['speakout_link'];
+        $slug = substr(strrchr($parent_url, '/'), 1);
+        $params['internal_name'] = str_replace('-', '_', $slug);
+        break;
+      }
+    }
+  } else {
     $parent = _drupout_create_parent($params);
     $params['parent_campaign_id'] = $parent->id;
   }
+
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
     $camp = json_decode($result['response']);
-    $camp_cid = _drupout_find_cid($node, 'campaign_id');
-    if ($camp_cid != NULL) {
-      $data = array(
-        'nid' => $node->webform['nid'],
-        'sid' => $submission->sid,
-        'cid' => $camp_cid,
-        'no' => 0,
-        'data' => $camp->id,
-      );
-      drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
-    }
-    $parent_cid = _drupout_find_cid($node, 'parent_campaign_id');
-    if ($parent_cid != NULL) {
-      $data = array(
-        'nid' => $node->webform['nid'],
-        'sid' => $submission->sid,
-        'cid' => $parent_cid,
-        'no' => 0,
-        'data' => $camp->parent_campaign_id,
-      );
-      drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
+    _drupout_write_record($node->nid, $submission->sid, $params['campaign_id_cid'], $camp->id);
+    if (isset($parent)) {
+      _drupout_write_record(
+          $node->nid, $submission->sid, $params['parent_campaign_id_cid'], $camp->parent_campaign_id);
     }
   }
   _drupout_rebuild_cookie($submission->uid);
@@ -335,8 +340,12 @@ function _drupout_update($params) {
   $result = _drupout_call_template($params, 'render');
   if ($result) {
     $rendered = json_decode($result['response'], true);
+
     //Restrict the campaign attributes to those affected by the webform submission
-    $attrs = array_diff(array_keys($result['input']), array('render_context', 'internal_name', 'slug'));
+    $attrs = array_diff(
+        array_keys($result['input']),
+        array('render_context', 'internal_name', 'slug', 'parent_campaign_id')
+    );
     $attrs = array_merge($attrs, array_keys($result['input']['render_context']));
     $jsonData = array_intersect_key($rendered, array_flip($attrs));
 
@@ -369,6 +378,22 @@ function _drupout_create_parent($params) {
   $api_result = _drupout_call_api('campaigns', $jsonData, 201);
   if ($api_result) {
     return json_decode($api_result['response']);
+  }
+}
+
+/**
+ * [Over]write a webform component record
+ */
+function _drupout_write_record($nid, $sid, $cid, $value) {
+  if ($cid != NULL) {
+    $data = array(
+      'nid' => $nid,
+      'sid' => $sid,
+      'cid' => $cid,
+      'no' => 0,
+      'data' => $value,
+    );
+    drupal_write_record('webform_submitted_data', $data, array('nid', 'sid', 'cid', 'no'));
   }
 }
 
