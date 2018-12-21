@@ -306,8 +306,8 @@ function _drupout_create($node, $submission, $params) {
 
   if ($params['is_translation'] == 1 && $params['parent_campaign_id']) {
     $submissions = webform_get_submissions(['nid' => $node->nid, 'uid' => $submission->uid]);
-    foreach ($submissions as $submission) {
-      $data = drupout_params($node, $submission);
+    foreach ($submissions as $other_submission) {
+      $data = drupout_params($node, $other_submission);
       if ($data['is_translation'] != '1' && $data['parent_campaign_id'] == $params['parent_campaign_id']) {
         $parent_url = $data['speakout_link'];
         $slug = substr(strrchr($parent_url, '/'), 1);
