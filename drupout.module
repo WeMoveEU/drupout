@@ -130,10 +130,8 @@ function drupout_form2json($params) {
     //Function comes from webform_youmove module
     $contact = _civicrm_user_profile_get_contact($user->uid);
     if ($contact['current_employer']) {
-      $initiator = $contact['current_employer'];
       $layout_id = variable_get('drupout_org_layout');
     } else {
-      $initiator = $contact['display_name'];
       $layout_id = NULL;
     }
   }
@@ -154,7 +152,7 @@ function drupout_form2json($params) {
     ),
     'render_context' => array(
       'sign_advice' => array(
-        'initiator' => $initiator,
+        'initiator' => $params['run_by'],
         'petition' => $params['what_do_you_want_them_to_do'],
         'why_important' => $params['why_is_this_important']
       )
