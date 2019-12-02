@@ -363,6 +363,7 @@ function _drupout_create_parent($params) {
     'slug' => drupout_slugify($title) . '-parent',
     'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-PARENT',
     'journey' => 'simple',
+    'language' => $params['language'],
   );
 
   $api_result = _drupout_call_api('campaigns', $jsonData, 201);
