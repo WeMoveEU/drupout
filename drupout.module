@@ -318,6 +318,12 @@ function _drupout_create($node, $submission, $params) {
     $params['parent_campaign_id'] = $parent->id;
   }
 
+  if (!$params['parent_campaign_id']) {
+    drupal_set_message(t("Could not create the petition (parent missing), please contact us at youmove@wemove.eu."), 'error');
+    $url = variable_get('webform_youmove__ymw_user_dashboard_url');
+    drupal_goto($url);
+  }
+
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
     $camp = json_decode($result['response']);
