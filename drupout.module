@@ -173,6 +173,10 @@ function drupout_form2json($params) {
         'why_important' => $params['why_is_this_important'],
         'has_logos' => count($logos) > 0,
         'logos' => $logos,
+      ),
+      'thankyou_body' => array(
+        'campaign' => array( 'name' => $title ),
+        'share_url' => _drupout_speakout_link($title),
       )
     )
   );
@@ -336,6 +340,12 @@ function _drupout_create($node, $submission, $params) {
     $params['parent_campaign_id'] = $parent->id;
   }
 
+  if (!$params['parent_campaign_id']) {
+    drupal_set_message(t("Could not create the petition (parent missing), please contact us at youmove@wemove.eu."), 'error');
+    $url = variable_get('webform_youmove__ymw_user_dashboard_url');
+    drupal_goto($url);
+  }
+
   $result = _drupout_call_template($params, 'clone');
   if ($result) {
     $camp = json_decode($result['response']);
@@ -381,6 +391,7 @@ function _drupout_create_parent($params) {
     'slug' => drupout_slugify($title) . '-parent',
     'internal_name' => $date_prefix . '-' . drupout_slugify($title, '_') . '-PARENT',
     'journey' => 'simple',
+    'language' => $params['language'],
   );
 
   $api_result = _drupout_call_api('campaigns', $jsonData, 201);
