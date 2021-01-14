@@ -105,6 +105,11 @@ function _drupout_submitted($submitted) {
   return $result;
 }
 
+function _drupout_file_url($fid) {
+  $f = file_load($fid);
+  return $f->uri ? file_create_url($f->uri) : '';
+}
+
 /**
  * Converts the submitted value into a JSON object that can be sent to Speakout
  */
@@ -124,7 +129,6 @@ function drupout_form2json($params) {
   } else {
     $internal_name = drupout_slugify($title, '_');
   }
-  $img_file = file_load($params['add_an_image']);
 
   if ($user->uid) {
     //Function comes from webform_youmove module
@@ -136,13 +140,25 @@ function drupout_form2json($params) {
     }
   }
 
+  $logos = [];
+  if ($params['partner']) {
+    $logos[] = [ 'url' =>  _drupout_file_url($params['partner'])];
+  }
+  $p = 2;
+  while ($params["is_partner_$p"]) {
+    if ($params["partner$p"]) {
+      $logos[] = [ 'url' => _drupout_file_url($params["partner$p"])];
+    }
+    $p++;
+  }
+
   $jsonData = array(
     'name' => $title,
     'slug' => drupout_slugify($title),
     'internal_name' => "$date_prefix-$internal_name-$language",
     'language' => $params['language'],
     'switcher_name' => $language_name,
-    'image_url' => $img_file->uri ? file_create_url($img_file->uri) : '',
+    'image_url' => _drupout_file_url($params['add_an_image']),
     'description' => $params['add_texts_for_social_media_shares'],
     'twitter_share_text' => $params['add_texts_for_ttwitter'],
     'custom_layout_id' => $layout_id,
@@ -154,7 +170,9 @@ function drupout_form2json($params) {
       'sign_advice' => array(
         'initiator' => $params['run_by'],
         'petition' => $params['what_do_you_want_them_to_do'],
-        'why_important' => $params['why_is_this_important']
+        'why_important' => $params['why_is_this_important'],
+        'has_logos' => count($logos) > 0,
+        'logos' => $logos,
       ),
       'thankyou_body' => array(
         'campaign' => array( 'name' => $title ),
