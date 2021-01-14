@@ -141,13 +141,13 @@ function drupout_form2json($params) {
   }
 
   $logos = [];
-  if ($params['partner']) {
-    $logos[] = [ 'url' =>  _drupout_file_url($params['partner'])];
+  if ($params['partner_1']) {
+    $logos[] = [ 'url' =>  _drupout_file_url($params['partner_1'])];
   }
   $p = 2;
   while ($params["is_partner_$p"]) {
-    if ($params["partner$p"]) {
-      $logos[] = [ 'url' => _drupout_file_url($params["partner$p"])];
+    if ($params["partner_$p"]) {
+      $logos[] = [ 'url' => _drupout_file_url($params["partner_$p"])];
     }
     $p++;
   }
