@@ -25,7 +25,7 @@ function drupout_webform_submission_presave($node, &$submission) {
 
     if (_drupout_ready_to_publish($data)) {
       $title = $data['civicrm_1_activity_1_activity_subject'];
-      if (empty($data['speakout_link'])) {
+      if (empty($data['speakout_link']) && _drupout_can_be_published($data)) {
         $submission->data[$data['speakout_link_cid']][0] = _drupout_speakout_link($title);
       }
       $link = $submission->data[$data['speakout_link_cid']][0];
@@ -314,6 +314,10 @@ function _drupout_ready_to_publish($form_data) {
   return !isset($form_data['ready_to_publish']) || ($form_data['ready_to_publish'] == '1');
 }
 
+function _drupout_can_be_published($form_data) {
+  return drupout_template_id($params['language']) != NULL;
+}
+
 /**
  * Call the clone API to create a campaign,
  * and stores the returned campaign id in the submission data.
@@ -338,6 +342,7 @@ function _drupout_create($node, $submission, $params) {
   } else {
     $parent = _drupout_create_parent($params);
     $params['parent_campaign_id'] = $parent->id;
+    _drupout_write_record($node->nid, $submission->sid, $params['parent_campaign_id_cid'], $params['parent_campaign_id']);
   }
 
   if (!$params['parent_campaign_id']) {
@@ -350,10 +355,6 @@ function _drupout_create($node, $submission, $params) {
   if ($result) {
     $camp = json_decode($result['response']);
     _drupout_write_record($node->nid, $submission->sid, $params['campaign_id_cid'], $camp->id);
-    if (isset($parent)) {
-      _drupout_write_record(
-          $node->nid, $submission->sid, $params['parent_campaign_id_cid'], $camp->parent_campaign_id);
-    }
   }
   _drupout_rebuild_cookie($submission->uid);
 }
