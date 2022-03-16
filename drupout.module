@@ -310,11 +310,17 @@ function _drupout_is_node_enabled($node) {
   return in_array($node->nid, $node_ids);
 }
 
+/**
+ * Tells whether the user wants to publish the petition
+ */
 function _drupout_ready_to_publish($form_data) {
   return !isset($form_data['ready_to_publish']) || ($form_data['ready_to_publish'] == '1');
 }
 
-function _drupout_can_be_published($form_data) {
+/**
+ * Tells whether it is technically possible to publish the petition
+ */
+function _drupout_can_be_published($params) {
   return drupout_template_id($params['language']) != NULL;
 }
 
@@ -647,8 +653,7 @@ function drupout_tokens($type, $tokens, $data, $options) {
           if (isset($params['ready_to_publish']) && $params['ready_to_publish'] != '1') {
             $replacement = variable_get('drupout_message_notready');
           } else {
-            $template_id = drupout_template_id($params['language']);
-            if ($template_id != NULL) {
+            if (_drupout_can_be_published($params)) {
               $replacement = '';
             } else {
               $replacement = variable_get('drupout_message_notcreated');
